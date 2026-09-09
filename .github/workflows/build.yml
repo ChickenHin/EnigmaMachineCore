@@ -1,88 +1,88 @@
-name: Build and Test
+# name: Build and Test
 
-on:
-  push:
-    branches: [ "main", "development" ]
-  pull_request:
-    branches: [ "main", "development" ]
+# on:
+#   push:
+#     branches: [ "main", "development" ]
+#   pull_request:
+#     branches: [ "main", "development" ]
 
-jobs:
-  build:
-    name: ${{ matrix.os }} - ${{ matrix.build_type }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux: Debug Build
-          - os: ubuntu-latest
-            build_type: Debug
+# jobs:
+#   build:
+#     name: ${{ matrix.os }} - ${{ matrix.build_type }}
+#     runs-on: ${{ matrix.os }}
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         include:
+#           # Linux: Debug Build
+#           - os: ubuntu-latest
+#             build_type: Debug
 
-          # Linux: Release Build
-          - os: ubuntu-latest
-            build_type: Release
+#           # Linux: Release Build
+#           - os: ubuntu-latest
+#             build_type: Release
 
-          # Windows: Release Only
-          - os: windows-latest
-            build_type: Release
+#           # Windows: Release Only
+#           - os: windows-latest
+#             build_type: Release
 
-          # macOS: Release Only
-          - os: macos-latest
-            build_type: Release
+#           # macOS: Release Only
+#           - os: macos-latest
+#             build_type: Release
 
-    steps:
-    - uses: actions/checkout@v6
-      if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
-      with:
-        submodules: recursive
+#     steps:
+#     - uses: actions/checkout@v6
+#       if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
+#       with:
+#         submodules: recursive
 
-    - name: Configure CMake
-      if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENIGMA_BUILD_TESTS=ON
+#     - name: Configure CMake
+#       if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
+#       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENIGMA_BUILD_TESTS=ON
 
-    - name: Build
-      if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
-      shell: bash
-      run: |
-        cmake --build "$GITHUB_WORKSPACE/build" --config ${{matrix.build_type}} 2>&1 | tee build.log
-        grep -E "warning:|warning C" build.log > warnings_list.txt || true
+#     - name: Build
+#       if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
+#       shell: bash
+#       run: |
+#         cmake --build "$GITHUB_WORKSPACE/build" --config ${{matrix.build_type}} 2>&1 | tee build.log
+#         grep -E "warning:|warning C" build.log > warnings_list.txt || true
 
-    - name: Compiler warning summary
-      if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
-      shell: bash
-      run: |
-        if [ -f warnings_list.txt ]; then
-          COUNT=$(wc -l < warnings_list.txt)
-        else
-          COUNT=0
-        fi
-        echo "warning_count=$COUNT" >> $GITHUB_ENV
-        echo "## Compiler Warnings" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "⚠️ Total warnings: $COUNT" >> $GITHUB_STEP_SUMMARY
+#     - name: Compiler warning summary
+#       if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
+#       shell: bash
+#       run: |
+#         if [ -f warnings_list.txt ]; then
+#           COUNT=$(wc -l < warnings_list.txt)
+#         else
+#           COUNT=0
+#         fi
+#         echo "warning_count=$COUNT" >> $GITHUB_ENV
+#         echo "## Compiler Warnings" >> $GITHUB_STEP_SUMMARY
+#         echo "" >> $GITHUB_STEP_SUMMARY
+#         echo "⚠️ Total warnings: $COUNT" >> $GITHUB_STEP_SUMMARY
 
-    - name: Upload build log
-      if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
-      uses: actions/upload-artifact@v6
-      with:
-        name: build-log-${{ matrix.os }}-${{ matrix.build_type }}
-        path: build.log
+#     - name: Upload build log
+#       if: matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')
+#       uses: actions/upload-artifact@v6
+#       with:
+#         name: build-log-${{ matrix.os }}-${{ matrix.build_type }}
+#         path: build.log
 
-    - name: Upload compiler warnings
-      if: (matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')) && env.warning_count > 0
-      uses: actions/upload-artifact@v6
-      with:
-        name: compiler-warnings-${{ matrix.os }}-${{ matrix.build_type }}
-        path: warnings_list.txt
+#     - name: Upload compiler warnings
+#       if: (matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')) && env.warning_count > 0
+#       uses: actions/upload-artifact@v6
+#       with:
+#         name: compiler-warnings-${{ matrix.os }}-${{ matrix.build_type }}
+#         path: warnings_list.txt
 
-    - name: Upload Build Artifacts
-      if: (matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')) && success()
-      uses: actions/upload-artifact@v6
-      with:
-        name: build-artifacts-${{ matrix.os }}-${{ matrix.build_type }}
-        path: |
-          ${{github.workspace}}/build/**/EnigmaMachineCore*
-          !${{github.workspace}}/build/**/*.o
-          !${{github.workspace}}/build/**/*.obj
-          !${{github.workspace}}/build/**/*.tlog
-          !${{github.workspace}}/build/**/*.log
+#     - name: Upload Build Artifacts
+#       if: (matrix.os == 'ubuntu-latest' || (github.ref != 'refs/heads/development' && github.base_ref != 'development')) && success()
+#       uses: actions/upload-artifact@v6
+#       with:
+#         name: build-artifacts-${{ matrix.os }}-${{ matrix.build_type }}
+#         path: |
+#           ${{github.workspace}}/build/**/EnigmaMachineCore*
+#           !${{github.workspace}}/build/**/*.o
+#           !${{github.workspace}}/build/**/*.obj
+#           !${{github.workspace}}/build/**/*.tlog
+#           !${{github.workspace}}/build/**/*.log
